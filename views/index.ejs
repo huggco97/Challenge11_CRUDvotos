@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Películas de Culto</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css"> 
+    <script
+              src="https://code.jquery.com/jquery-3.7.1.min.js"
+              integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+              crossorigin="anonymous">
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div class="header">
+        <h1>Peliculas de Culto</h1>
+    </div>
+    
+    <form action="/pelicula" method="POST" class="mb-8">
+        <div class="flex space-x-2">
+            <input type="text" name="pelicula" placeholder="Nombre de la Pelicula" required class="flex-1 p-2 border border-gray-300 rounded">
+            <input type="text" name="enlace" placeholder="Enlace" required class="flex-1 p-2 border border-gray-300 rounded">
+            <button type="submit" class="bg-blue-500 text-white p-2 rounded">Agregar Película</button>
+        </div>
+    </form>
+    <ul class="space-y-4" id="lista_peli">
+        <% pelicula.forEach(pelicula => { %>
+            <li data-votes="<%= pelicula.votos %>" class="bg-white shadow-md rounded p-4 flex justify-between items-center">
+                <div>
+                    <input id="id_pelicula" type="hidden" value=<%= pelicula.id_pelicula %>>
+                    <h3 class="text-xl font-semibold"><%= pelicula.pelicula %></h3>
+                    <p class="text-gray-600">Votos: <span id="vote-count-<%= pelicula.id_pelicula %>" class="votes-count"><%= pelicula.votos %></span></p>
+                    <a href="<%= pelicula.enlace %>" target="_blank" class="text-blue-500 hover:underline">Ver Enlace</a>
+                </div>
+                <div class="flex space-x-2">
+                    <form action="/pelicula/<%= pelicula.id_pelicula %>/vote" method="POST">
+                        <button value="votar_id" id='<%= pelicula.id_pelicula %>' type="submit" class="vote-button bg-green-500 text-white p-2 rounded">
+                            Votar
+                        </button>
+                    </form>
+                    <form action="/pelicula/<%= pelicula.id_pelicula %>?_method=PUT" method="POST">
+                        <input type="text" name="pelicula" value="<%= pelicula.pelicula %>" required class="border border-gray-300 rounded p-1">
+                        <input type="text" name="enlace" value="<%= pelicula.enlace %>" required class="border border-gray-300 rounded p-1">
+                        <button type="submit" class="bg-yellow-500 text-white p-2 rounded">Actualizar</button>
+                    </form>
+                    <form action="/pelicula/<%= pelicula.id_pelicula %>?_method=DELETE" method="POST">
+                        <button type="submit" class="bg-red-500 text-white p-2 rounded">Eliminar</button>
+                    </form>
+                </div>
+            </li>
+        <% }) %>
+    </ul>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded');
+            
+            function sortMoviesList() {
+                const list = document.getElementById('lista_peli');
+                const items = Array.from(list.children);
+                
+                items.sort((a, b) => {
+                    const votesA = parseInt(a.querySelector('.votes-count').textContent);
+                    const votesB = parseInt(b.querySelector('.votes-count').textContent);
+                    return votesB - votesA;
+                });
+                
+                // Limpia la lista y agrega los elementos ordenados
+                while (list.firstChild) {
+                    list.removeChild(list.firstChild);
+                }
+                
+                items.forEach(item => {
+                    list.appendChild(item);
+                });
+            }
+            
+            const voteButtons = document.querySelectorAll('.vote-button');
+            console.log('Botones de voto encontrados:', voteButtons.length);
+            
+            voteButtons.forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    console.log('Botón de voto clickeado');
+                    event.preventDefault();
+                    const id = event.target.id;
+                    console.log('ID de película:', id);
+                    
+                    try {
+                        const response = await fetch(`/pelicula/${id}/vote`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        });
+        
+                        console.log('Respuesta recibida:', response.status);
+        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('Datos recibidos:', data);
+                            
+                            const listItem = event.target.closest('li');
+                            const votesCount = listItem.querySelector('.votes-count');
+                            if (votesCount) {
+                                votesCount.textContent = data.votos;
+                                // Actualiza el atributo data-votes
+                                listItem.dataset.votes = data.votos;
+                                console.log('Votos actualizados a:', data.votos);
+                                
+                                // Ordena la lista después de actualizar los votos
+                                sortMoviesList();
+                            } else {
+                                console.error('No se encontró el elemento votes-count');
+                            }
+                           
+                            button.classList.add('bg-blue-500');
+                            setTimeout(() => {
+                                button.classList.remove('bg-blue-500');
+                                button.classList.add('bg-green-500');
+                            }, 200);
+                        } else {
+                            console.error('Error en la respuesta:', await response.text());
+                            alert('Hubo un problema al votar.');
+                        }
+                    } catch (error) {
+                        console.error('Error al votar:', error);
+                        alert('Hubo un problema al votar.');
+                    }
+                });
+            });
+
+            // Realiza el ordenamiento inicial
+            sortMoviesList();
+        });
+    </script>
+</body>
+</html>
